@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Permissions-Policy" content="magnetometer=(self), accelerometer=(self), gyroscope=(self), ambient-light-sensor=(self)">
+<title>HTeam Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#030805;
+    --bg2:#050f0a;
+    --green:#39ff9e;
+    --green-dim:#1d7a52;
+    --blue:#33c7ff;
+    --red:#ff3b3b;
+    --text-dim:#7fa895;
+    --line: rgba(57,255,158,0.18);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:radial-gradient(ellipse at 50% 20%, var(--bg2) 0%, var(--bg) 70%);
+    color:var(--green);
+    font-family:'Share Tech Mono', monospace;
+    overflow:hidden;
+    user-select:none;
+  }
+  .brand{font-family:'Orbitron', sans-serif;}
+
+  /* ---------- SPLASH ---------- */
+  #splash{
+    position:fixed; inset:0; z-index:100;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#020503;
+    transition:opacity .6s ease, visibility .6s ease;
+  }
+  #splash.hide{opacity:0; visibility:hidden; pointer-events:none;}
+  .splash-ring{
+    width:120px; height:120px; border-radius:50%;
+    border:2px solid var(--green-dim);
+    position:relative;
+    margin-bottom:28px;
+    display:flex; align-items:center; justify-content:center;
+    animation:pulseRing 2.2s ease-in-out infinite;
+  }
+  .splash-ring::before{
+    content:""; position:absolute; inset:-16px; border-radius:50%;
+    border:1px solid rgba(57,255,158,0.25);
+    animation:pulseRing 2.2s ease-in-out infinite .3s;
+  }
+  .splash-ring::after{
+    content:""; position:absolute; width:100%; height:100%; border-radius:50%;
+    background:conic-gradient(from 0deg, transparent 0deg, rgba(57,255,158,0.55) 40deg, transparent 90deg);
+    animation:spin 1.4s linear infinite;
+  }
+  .splash-dot{width:10px; height:10px; border-radius:50%; background:var(--green); box-shadow:0 0 12px 3px var(--green); z-index:2;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes pulseRing{
+    0%,100%{transform:scale(1); opacity:.7;}
+    50%{transform:scale(1.08); opacity:1;}
+  }
+  .splash-title{
+    font-size:34px; font-weight:900; letter-spacing:3px; color:var(--green);
+    text-shadow:0 0 18px rgba(57,255,158,0.65), 0 0 40px rgba(51,199,255,0.25);
+  }
+  .splash-title span{color:var(--blue); text-shadow:0 0 18px rgba(51,199,255,0.65);}
+  .splash-sub{
+    margin-top:10px; font-size:12px; letter-spacing:4px; color:var(--text-dim);
+  }
+  .splash-bar-track{
+    margin-top:34px; width:190px; height:3px; background:rgba(57,255,158,0.12);
+    border-radius:2px; overflow:hidden;
+  }
+  .splash-bar-fill{
+    height:100%; width:0%; background:linear-gradient(90deg, var(--green), var(--blue));
+    animation:fillBar 2.1s ease-out forwards;
+  }
+  @keyframes fillBar{from{width:0%;} to{width:100%;}}
+
+  /* ---------- GATE (permission) ---------- */
+  #gate{
+    position:fixed; inset:0; z-index:60; display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    padding:32px; text-align:center; gap:18px;
+  }
+  #gate.show{display:flex;}
+  #gate h2{font-family:'Orbitron'; font-size:18px; letter-spacing:2px; margin:0; color:var(--green);}
+  #gate p{color:var(--text-dim); font-size:13px; line-height:1.6; max-width:320px; margin:0;}
+  .btn{
+    font-family:'Orbitron', sans-serif; font-size:13px; letter-spacing:2px;
+    padding:14px 30px; border-radius:30px; border:1px solid var(--green);
+    background:rgba(57,255,158,0.08); color:var(--green); cursor:pointer;
+    box-shadow:0 0 16px rgba(57,255,158,0.15);
+    transition:.2s;
+  }
+  .btn:active{transform:scale(.96); background:rgba(57,255,158,0.2);}
+  .gate-note{font-size:11px; color:#4d6b5c; max-width:300px;}
+
+  /* ---------- APP ---------- */
+  #app{
+    display:none; flex-direction:column; align-items:center;
+    height:100%; width:100%; padding:14px 16px calc(18px + env(safe-area-inset-bottom));
+    position:relative; z-index:1;
+  }
+  #app.show{display:flex;}
+
+  header{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:4px 2px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .logo{font-family:'Orbitron'; font-weight:700; font-size:16px; letter-spacing:2px; color:var(--green);}
+  .logo span{color:var(--blue);}
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); display:inline-block; margin-right:6px; animation:blink 1.6s infinite;}
+  @keyframes blink{50%{opacity:.3;}}
+  .hdr-right{font-size:10px; color:var(--text-dim); display:flex; align-items:center;}
+
+  .radar-wrap{
+    flex:1; width:100%; display:flex; align-items:center; justify-content:center;
+    position:relative; min-height:0;
+  }
+  .radar-scope{
+    position:relative; width:min(84vw, 340px); aspect-ratio:1/1;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(57,255,158,0.05) 0%, rgba(0,0,0,0.5) 75%);
+    box-shadow:0 0 0 1px var(--line), inset 0 0 40px rgba(0,0,0,0.6);
+  }
+  .sweep{
+    position:absolute; inset:0; border-radius:50%; overflow:hidden;
+    animation:spin 3.4s linear infinite;
+  }
+  .sweep::after{
+    content:""; position:absolute; inset:0;
+    background:conic-gradient(from 0deg, rgba(57,255,158,0.35) 0deg, rgba(57,255,158,0.0) 55deg);
+  }
+  .sweep.fast{animation-duration:0.9s;}
+  .sweep.fast::after{background:conic-gradient(from 0deg, rgba(51,199,255,0.55) 0deg, rgba(51,199,255,0.0) 70deg);}
+
+  .dial{
+    position:absolute; inset:0; border-radius:50%;
+    transition: transform .15s linear;
+  }
+  .ring{position:absolute; border:1px solid var(--line); border-radius:50%;}
+  .ring.r1{inset:0%;}
+  .ring.r2{inset:16.5%;}
+  .ring.r3{inset:33%;}
+  .ring.r4{inset:49.5%;}
+  .crosshair{position:absolute; background:var(--line);}
+  .crosshair.h{top:50%; left:0; right:0; height:1px;}
+  .crosshair.v{left:50%; top:0; bottom:0; width:1px;}
+  .tick{position:absolute; font-size:10px; color:var(--text-dim); font-family:'Orbitron'; transform:translate(-50%,-50%);}
+  .tick.n{color:var(--blue);}
+
+  .center-dot{
+    position:absolute; top:50%; left:50%; width:9px; height:9px; margin:-4.5px;
+    border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); z-index:5;
+  }
+  .blip{
+    position:absolute; width:12px; height:12px; margin:-6px;
+    border-radius:50%; background:var(--red); box-shadow:0 0 12px 3px var(--red);
+    animation:blipIn .4s ease-out, blipFade 4.5s ease-in forwards;
+    z-index:6;
+  }
+  @keyframes blipIn{from{transform:scale(0);} to{transform:scale(1);}}
+  @keyframes blipFade{0%{opacity:1;} 75%{opacity:0.9;} 100%{opacity:0;}}
+
+  .readout{
+    width:100%; max-width:360px; display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:8px; margin-top:10px; font-size:10px; text-align:center;
+  }
+  .readout div{background:rgba(57,255,158,0.05); border:1px solid var(--line); border-radius:8px; padding:6px 2px;}
+  .readout b{display:block; font-family:'Orbitron'; font-size:13px; color:var(--blue); margin-top:2px;}
+  .readout b.alert{color:var(--red);}
+
+  .scan-btn{
+    margin-top:16px; width:64px; height:64px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(57,255,158,0.35), rgba(6,30,18,0.9));
+    border:1.5px solid var(--green); color:var(--green); font-family:'Orbitron';
+    font-size:10px; letter-spacing:1px; cursor:pointer;
+    box-shadow:0 0 20px rgba(57,255,158,0.35), inset 0 0 10px rgba(57,255,158,0.2);
+  }
+  .scan-btn:active{transform:scale(.94);}
+  .scan-btn.scanning{border-color:var(--blue); color:var(--blue); box-shadow:0 0 24px rgba(51,199,255,0.5);}
+
+  .log-toggle{
+    margin-top:10px; font-size:10px; color:var(--text-dim); letter-spacing:1px;
+    text-decoration:underline; cursor:pointer; background:none; border:none; font-family:'Share Tech Mono';
+  }
+  #logPanel{
+    display:none; width:100%; max-width:360px; max-height:26vh; overflow-y:auto;
+    margin-top:8px; font-size:10.5px; border-top:1px solid var(--line); padding-top:6px;
+  }
+  #logPanel.show{display:block;}
+  .log-item{padding:4px 2px; border-bottom:1px dashed rgba(57,255,158,0.1); display:flex; justify-content:space-between; gap:6px;}
+  .log-item .tag{color:var(--red);}
+  .log-item .tag.ok{color:var(--green-dim);}
+  .log-time{color:var(--text-dim); flex-shrink:0;}
+
+  .alert-box{
+    margin-top:12px; min-height:16px;
+    font-family:'Orbitron'; font-size:12px; letter-spacing:.5px;
+    color:var(--red); text-shadow:0 0 10px rgba(255,59,59,0.6);
+    opacity:0; transform:translateY(-4px);
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .alert-box.show{opacity:1; transform:translateY(0); animation:alertPulse 1s ease-in-out infinite;}
+  @keyframes alertPulse{0%,100%{opacity:1;} 50%{opacity:.55;}}
+
+  .warn-box{
+    margin-top:8px; min-height:14px; font-size:10.5px; text-align:center;
+    color:#ffb020; text-shadow:0 0 8px rgba(255,176,32,0.5);
+    opacity:0; transition:opacity .3s ease; padding:0 10px; line-height:1.5;
+  }
+  .warn-box.show{opacity:1;}
+
+  /* ---------- SETTINGS ---------- */
+  .icon-btn{
+    width:32px; height:32px; border-radius:50%; border:1px solid var(--line);
+    background:rgba(57,255,158,0.06); color:var(--green); display:flex;
+    align-items:center; justify-content:center; cursor:pointer; font-size:16px;
+    flex-shrink:0;
+  }
+  .icon-btn:active{transform:scale(.92);}
+  #settingsOverlay{
+    position:fixed; inset:0; z-index:80; display:none;
+    background:rgba(2,5,3,0.82); backdrop-filter:blur(2px);
+    align-items:flex-end; justify-content:center;
+  }
+  #settingsOverlay.show{display:flex;}
+  .settings-panel{
+    width:100%; max-width:420px; max-height:82vh; overflow-y:auto;
+    background:#04120a; border:1px solid var(--line); border-bottom:none;
+    border-radius:20px 20px 0 0; padding:18px 20px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 40px rgba(0,0,0,0.5);
+  }
+  .settings-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .settings-head h3{font-family:'Orbitron'; font-size:14px; letter-spacing:2px; margin:0; color:var(--green);}
+  .settings-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 0; border-bottom:1px solid var(--line); gap:10px;
+  }
+  .settings-row .label{font-size:12.5px; line-height:1.5;}
+  .settings-row .label small{display:block; color:var(--text-dim); font-size:10px; margin-top:3px;}
+  .switch{position:relative; width:42px; height:24px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .switch .track{
+    position:absolute; inset:0; background:rgba(57,255,158,0.12); border:1px solid var(--line);
+    border-radius:14px; transition:.2s; cursor:pointer;
+  }
+  .switch .track::before{
+    content:""; position:absolute; width:16px; height:16px; left:3px; top:3px;
+    background:var(--text-dim); border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .track{background:rgba(57,255,158,0.25); border-color:var(--green);}
+  .switch input:checked + .track::before{transform:translateX(18px); background:var(--green); box-shadow:0 0 8px var(--green);}
+  .seg{display:flex; gap:6px;}
+  .seg button{
+    font-family:'Share Tech Mono'; font-size:11px; padding:6px 10px; border-radius:8px;
+    border:1px solid var(--line); background:transparent; color:var(--text-dim); cursor:pointer;
+  }
+  .seg button.active{border-color:var(--green); color:var(--green); background:rgba(57,255,158,0.1);}
+  .settings-sub{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+  .link-btn{
+    font-size:11.5px; color:var(--blue); background:none; border:1px solid var(--line);
+    border-radius:8px; padding:8px 12px; cursor:pointer; font-family:'Share Tech Mono'; width:100%; margin-top:14px;
+  }
+  .settings-note{
+    margin-top:16px; font-size:10.5px; color:var(--text-dim); line-height:1.7;
+    border-top:1px solid var(--line); padding-top:12px;
+  }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-ring"><div class="splash-dot"></div></div>
+  <div class="splash-title brand">HTEAM <span>RADAR</span></div>
+  <div class="splash-sub">CẢM BIẾN DỊ THƯỜNG • V1.0</div>
+  <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
+</div>
+
+<!-- PERMISSION GATE -->
+<div id="gate">
+  <h2 class="brand">KÍCH HOẠT CẢM BIẾN</h2>
+  <p>HTeam Radar đọc dữ liệu thật từ la bàn, từ kế, gia tốc kế và cảm biến ánh sáng của máy để dò các dấu hiệu bất thường xung quanh bạn. Không có dữ liệu giả lập.</p>
+  <button class="btn" id="grantBtn">CẤP QUYỀN &amp; BẮT ĐẦU</button>
+  <div class="gate-note" id="gateNote">Cần mở bằng HTTPS trên điện thoại thật (không phải file mở cục bộ hay máy tính) để cảm biến hoạt động.</div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="logo"><span class="status-dot"></span>HTEAM <span>RADAR</span></div>
+    <button class="icon-btn" id="settingsBtn" aria-label="Cài đặt">⚙</button>
+  </header>
+
+  <div class="radar-wrap">
+    <div class="radar-scope">
+      <div class="sweep" id="sweep"></div>
+      <div class="dial" id="dial">
+        <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+        <div class="crosshair h"></div><div class="crosshair v"></div>
+        <div class="tick n" style="top:4%; left:50%;">B</div>
+        <div class="tick" style="top:50%; left:96%; transform:translate(-50%,-50%);">Đ</div>
+        <div class="tick" style="top:96%; left:50%;">N</div>
+        <div class="tick" style="top:50%; left:4%; transform:translate(-50%,-50%);">T</div>
+        <div id="blipLayer"></div>
+      </div>
+      <div class="center-dot"></div>
+    </div>
+  </div>
+
+  <div class="readout">
+    <div>HƯỚNG<b id="valHeading">--°</b></div>
+    <div>TỪ TRƯỜNG<b id="valMag">-- µT</b></div>
+    <div>TRẠNG THÁI<b id="valStatus">Ổn định</b></div>
+  </div>
+  <div class="warn-box" id="warnBox"></div>
+
+  <button class="scan-btn" id="scanBtn">SCAN</button>
+  <div class="alert-box" id="alertBox"></div>
+  <button class="log-toggle" id="logToggle">▾ NHẬT KÝ QUÉT</button>
+  <div id="logPanel"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsOverlay">
+  <div class="settings-panel">
+    <div class="settings-head">
+      <h3 class="brand">CÀI ĐẶT</h3>
+      <button class="icon-btn" id="closeSettings" aria-label="Đóng">✕</button>
+    </div>
+
+    <div class="settings-row">
+      <div class="label">Ước lượng khoảng cách qua GPS
+        <small id="gpsStatusText">Đang tắt — dùng mức cường độ thay vì số mét</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="gpsToggle">
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
+      <div class="label" style="margin-bottom:8px;">Độ nhạy phát hiện
+        <small>Nhạy cao báo nhiều hơn nhưng dễ báo nhầm</small>
+      </div>
+      <div class="seg" id="sensSeg">
+        <button data-v="3.0">Thấp</button>
+        <button data-v="2.2" class="active">Trung bình</button>
+        <button data-v="1.6">Cao</button>
+      </div>
+    </div>
+
+    <button class="link-btn" id="clearLogBtn">XOÁ NHẬT KÝ QUÉT</button>
+
+    <div class="settings-note">
+      Vị trí/khoảng cách hiển thị trên radar chỉ là ước lượng dựa trên độ lệch cảm biến, không phải phép đo khoảng cách laser chính xác. Khi bật GPS, ứng dụng so sánh cường độ giữa 2 lần quét tại 2 vị trí khác nhau (cần di chuyển vài mét giữa các lần quét) để ước lượng gần đúng hơn — vẫn có sai số do nhiễu từ môi trường xung quanh. Trình duyệt web không thể đọc cảm biến nhiệt của điện thoại.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const el = id => document.getElementById(id);
+  const splash = el('splash'), gate = el('gate'), app = el('app');
+  const dial = el('dial'), blipLayer = el('blipLayer'), sweep = el('sweep');
+  const valHeading = el('valHeading'), valMag = el('valMag'), valStatus = el('valStatus');
+  const scanBtn = el('scanBtn');
+  const logPanel = el('logPanel'), logToggle = el('logToggle');
+  const alertBox = el('alertBox');
+  const warnBox = el('warnBox');
+  const settingsBtn = el('settingsBtn'), closeSettings = el('closeSettings'), settingsOverlay = el('settingsOverlay');
+  const gpsToggle = el('gpsToggle'), gpsStatusText = el('gpsStatusText');
+  const sensSeg = el('sensSeg'), clearLogBtn = el('clearLogBtn');
+  let alertTimer = null;
+  let lastHeadingUpdate = 0;
+  let gpsEnabled = false;
+  let THRESHOLD = 2.2; // z-score threshold for "anomaly"
+  let scanRecords = []; // {lat, lon, z, t} — used for GPS gradient distance estimate
+
+  let heading = 0;
+  let usingAbsoluteCompass = false;
+  let magHistory = [];       // real magnetometer magnitudes (µT)
+  let accelHistory = [];     // fallback: accel magnitude
+  let lightHistory = [];     // ambient light lux
+  let magSupported = false, accelSupported = false, lightSupported = false;
+  let scanning = false;
+
+  // ---------------- SPLASH ----------------
+  setTimeout(()=>{
+    splash.classList.add('hide');
+    gate.classList.add('show');
+  }, 2300);
+
+  // ---------------- LOG ----------------
+  function logEntry(text, alert){
+    const t = new Date().toLocaleTimeString('vi-VN', {hour12:false});
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.innerHTML = `<span class="tag ${alert?'':'ok'}">${alert? '● BẤT THƯỜNG':'○ bình thường'}</span><span>${text}</span><span class="log-time">${t}</span>`;
+    logPanel.prepend(div);
+  }
+  logToggle.onclick = ()=>{
+    logPanel.classList.toggle('show');
+    logToggle.textContent = logPanel.classList.contains('show') ? '▴ ẨN NHẬT KÝ' : '▾ NHẬT KÝ QUÉT';
+  };
+
+  // ---------------- STATS HELPERS ----------------
+  function pushHist(arr, v, max){ arr.push(v); if(arr.length>max) arr.shift(); }
+  function mean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+  function stdev(arr){ const m = mean(arr); return Math.sqrt(arr.reduce((a,b)=>a+(b-m)*(b-m),0)/arr.length); }
+  function zscore(arr, latest){
+    if(arr.length < 8) return 0;
+    const m = mean(arr), sd = stdev(arr) || 0.0001;
+    return Math.abs(latest - m) / sd;
+  }
+
+  // ---------------- ORIENTATION / COMPASS ----------------
+  function applyHeading(h){
+    heading = ((h % 360) + 360) % 360;
+    dial.style.transform = `rotate(${-heading}deg)`;
+    valHeading.textContent = Math.round(heading) + '°';
+    lastHeadingUpdate = Date.now();
+  }
+  function orientationHandler(e){
+    let h;
+    if (typeof e.webkitCompassHeading === 'number') { h = e.webkitCompassHeading; usingAbsoluteCompass = true; }
+    else if (e.absolute && e.alpha != null) { h = 360 - e.alpha; usingAbsoluteCompass = true; }
+    else if (e.alpha != null) { h = 360 - e.alpha; }
+    else return;
+    applyHeading(h);
+  }
+  function setupOrientation(){
+    if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', orientationHandler, true);
+    } else {
+      window.addEventListener('deviceorientation', orientationHandler, true);
+    }
+  }
+
+  // ---------------- MAGNETOMETER (real field strength, µT) ----------------
+  function setupMagnetometer(){
+    try {
+      if ('Magnetometer' in window) {
+        const sensor = new Magnetometer({frequency: 12});
+        sensor.addEventListener('reading', ()=>{
+          const mag = Math.hypot(sensor.x||0, sensor.y||0, sensor.z||0);
+          pushHist(magHistory, mag, 60);
+          magSupported = true;
+          valMag.textContent = mag.toFixed(1) + ' µT';
+        });
+        sensor.addEventListener('error', ()=>{ magSupported = false; });
+        sensor.start();
+        return true;
+      }
+    } catch(err){ /* not supported / not pe
